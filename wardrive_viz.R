@@ -15,10 +15,12 @@ raw <- readLines(csvs[1])
 
 # get header
 walk <- read.csv(text = paste(raw[[2]], raw[[3]], sep = "\n"))
+walk$SSID <- as.character(walk$SSID)
 
 # iterate over the remaining rows, if we find a higher than
 # expected number of columns, we paste together the SSID column
 # (column 2) and the following column (column 3)
+
 for(i in 3:length(raw)) {
   temp_row <- read.csv(text = raw[[i]], header = F)
 
@@ -30,10 +32,13 @@ for(i in 3:length(raw)) {
 
   names(temp_row) <- names(walk)
 
+   # coerce SSID to character
+   temp_row$SSID <- as.character(temp_row$SSID)
+
   walk <- bind_rows(walk, temp_row)
 
 }
-# clean lat/lng (messy messy messy) ----
+# clean raw file further ----
 colnames(walk)[colnames(walk) == "CurrentLatitude"]  <- "lat"
 colnames(walk)[colnames(walk) == "CurrentLongitude"] <- "lng"
 
