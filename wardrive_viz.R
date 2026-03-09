@@ -14,14 +14,17 @@ read_log <- function(file) {
   raw <- readLines(file)
   
   # get header
-  walk <- read.csv(text = paste(raw[[2]], raw[[3]], sep = "\n"))
+  walk <- read.csv(text = paste(raw[[1]], raw[[2]], sep = "\n"))
   walk$SSID <- as.character(walk$SSID)
   
   # iterate over the remaining rows, if we find a higher than
   # expected number of columns, we paste together the SSID column
   # (column 2) and the following column (column 3)
   for(i in 3:length(raw)) {
-    temp_row <- read.csv(text = raw[[i]], header = F)
+
+    # TryCatch to avoid unexpected hangups
+    tryCatch({
+      temp_row <- read.csv(text = raw[[i]], header = F)
     
     if(ncol(temp_row) == 15) {
       temp_row[2] <- paste0(temp_row[2], temp_row[3])
@@ -35,6 +38,8 @@ read_log <- function(file) {
     temp_row$SSID <- as.character(temp_row$SSID)
     
     walk <- bind_rows(walk, temp_row)
+    }, error = function(e){})
+    
     
   }
   
@@ -43,17 +48,17 @@ read_log <- function(file) {
   colnames(walk)[colnames(walk) == "CurrentLatitude"]  <- "lat"
   colnames(walk)[colnames(walk) == "CurrentLongitude"] <- "lng"
   
-  walk$lat <- sub("\\.", ",", walk$lat)
-  walk$lat <- gsub("\\.", "", walk$lat)
-  walk$lat <- as.numeric(sub("\\,", ".", walk$lat))
+  # walk$lat <- sub("\\.", ",", walk$lat)
+  # walk$lat <- gsub("\\.", "", walk$lat)
+  # walk$lat <- as.numeric(sub("\\,", ".", walk$lat))
   
-  walk$lng <- sub("\\.", ",", walk$lng)
-  walk$lng <- gsub("\\.", "", walk$lng)
-  walk$lng <- as.numeric(sub("\\,", ".", walk$lng))
+  # walk$lng <- sub("\\.", ",", walk$lng)
+  # walk$lng <- gsub("\\.", "", walk$lng)
+  # walk$lng <- as.numeric(sub("\\,", ".", walk$lng))
   
   palette <- data.frame(
-    AuthMode = c("[OPEN]", "[WEP]", "[WPA_WPA2_PSK]", "[WPA2_PSK]", "[WPA2_ENTERPRISE]", "[WPA2_WPA3_PSK]"),
-    color    = c("red",    "orange", "yellow",        "green",         "green",           "blue")
+    AuthMode = c("OPEN",  "WEP",    "WPA",    "WPA/WPA2", "WPA2",  "WPA2/WPA3", "WPA3"),
+    color    = c("red",   "orange", "yellow", "yellow",    "green",         "green",           "blue")
   )
   
   walk <- left_join(walk, palette, by = "AuthMode")
@@ -70,12 +75,14 @@ for(filename in seq_along(csvs)) {
 }
 
 # optionally filter ----
-plotdata <- filter(plotdata, AuthMode == "[OPEN]")
+plotdata <- filter(plotdata, AuthMode %in% c("OPEN", "WEP", "WPA"))
 
+# reduce data ----
+plotdata <- distinct(plotdata, SSID, .keep_all = T)
 
 # Generate map ----
 leaflet() %>%
-addProviderTiles(providers$CartoDB.Positron) %>%
+addProviderTiles(providers$CartoDB.DarkMatter) %>%
 setView(lng = 4.35, lat = 52.08, zoom = 14) %>%
 addMarkers(data = plotdata, 
   group = "Markers", 
